@@ -1,33 +1,3 @@
-/*#include<linux/sched.h>
-#include<linux/syscalls.h>
-#include <linux/file.h>
-#include <linux/fcntl.h>
-#include <linux/slab.h>
-#include <crypto/md5.h>
-#include <crypto/internal/skcipher.h>
-#include <crypto/rng.h>
-#include <linux/kernel.h>
-#include <linux/init.h>           
-#include <linux/module.h>         
-#include <linux/device.h>         
-#include <linux/kernel.h>         
-#include <linux/fs.h>            
-#include <linux/uaccess.h>          
-#include <linux/mutex.h>	 
-#include<linux/moduleparam.h>
-#include<linux/mm.h>
-#include <linux/scatterlist.h>  
-#include <linux/err.h>
-#include <linux/errno.h>
-#include <linux/kmod.h>
-#include <linux/string.h>
-#include <linux/completion.h>
-#include <crypto/skcipher.h>
-#include <linux/crypto.h>
-#include <crypto/hash.h>
-#include <linux/stat.h> 
-*/
-
 #include<linux/kernel.h>
 #include<linux/init.h>
 #include<linux/sched.h>
@@ -57,9 +27,9 @@ void hexdump(unsigned char *buf, unsigned int len)
 
 
 
-void crypt_SOB(unsigned char message[], int tamanho){
+int crypt_SOB(unsigned char message[], int tamanho){
 
-	
+	printk("entrei\n");
 	
 	int   	mode = 0;
 	int   	mask = 0; 
@@ -129,7 +99,7 @@ void crypt_SOB(unsigned char message[], int tamanho){
 				input[i] = 0;	
 			}
 
-			else if(message[j] == '\0')
+			else if(j > tamanho)
 			{
 				input[i] = 0;
 				zerar = 1;
@@ -162,7 +132,7 @@ void crypt_SOB(unsigned char message[], int tamanho){
 	strcpy(message, messageSaida);
 	message[j] = '\0';
 
-	printk("Message: "); hexdump(message, tamanho);
+	printk("Message: "); hexdump(message, j);
 
 	kfree(output);
 	kfree(input);
@@ -170,6 +140,8 @@ void crypt_SOB(unsigned char message[], int tamanho){
 	out:
 	crypto_free_skcipher(tfm);
 	skcipher_request_free(req);
+	
+	return j;
 
 }
 
@@ -185,8 +157,8 @@ asmlinkage ssize_t write_crypt(int fd, const void *buf, size_t nbytes){
 	for(i = 0; i < tamanho; i++) {
 		sprintf(&message[i], "%c",((char *)buf)[i]);
 	}
-	
-	crypt_SOB(message, tamanho);
+	printk("valor message = %s", message);
+	tamanho = crypt_SOB(message, tamanho);
 
 	for(i = 0; i < tamanho; i++) {
 		sprintf(&arquivo[i*2], "%02x", message[i]);

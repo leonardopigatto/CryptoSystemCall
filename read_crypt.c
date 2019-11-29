@@ -26,7 +26,7 @@
 
 #define DATA_SIZE       16
 
-void hexdump(unsigned char *buf, unsigned int len)
+void hexdumpRead(unsigned char *buf, unsigned int len)
 {
 	while (len--){
 		printk("%2d %02x", len, *buf++);	
@@ -35,9 +35,85 @@ void hexdump(unsigned char *buf, unsigned int len)
 	printk("\n");
 }
 
+int converteHexa(char valor){
 
 
-void crypt_SOB(unsigned char message[], int tamanho){
+	switch(valor){
+
+		case '0':
+			return 00;
+		break;
+
+		case '1':
+			return 01;
+		break;
+
+		case '2':
+			return 02;
+		break;
+
+		case '3':
+			return 03;
+		break;
+
+		case '4':
+			return 04;
+		break;
+
+		case '5':
+			return 05;
+		break;
+
+		case '6':
+			return 06;
+		break;
+
+		case '7':
+			return 07;
+		break;
+
+		case '8':
+			return 8;
+		break;
+
+		case '9':
+			return 9;
+		break;
+
+		case 'a':
+		case 'A':
+			return 10;
+		break;
+
+		case 'b':
+		case 'B':
+			return 11;
+		break;
+
+		case 'c':
+		case 'C':
+			return 12;
+		break;
+
+		case 'd':
+		case 'D':
+			return 13;
+		break;
+
+		case 'e':
+		case 'E':
+			return 14;
+		break;
+
+		case 'f':
+		case 'F':
+			return 15;
+		break;
+	}
+}
+
+
+void decrypt_SOB(unsigned char message[], int tamanho){
 
 	
 	
@@ -109,7 +185,7 @@ void crypt_SOB(unsigned char message[], int tamanho){
 				input[i] = 0;	
 			}
 
-			else if(message[j] == '\0')
+			else if(j > tamanho)
 			{
 				input[i] = 0;
 				zerar = 1;
@@ -128,8 +204,8 @@ void crypt_SOB(unsigned char message[], int tamanho){
 
 		saida = sg_virt(&sg[1]);	
 		
-		printk("Entrada: "); hexdump(input, 16);
-		printk("Saida: "); hexdump(output, 16);
+		printk("Entrada: "); hexdumpRead(input, 16);
+		printk("Saida: "); hexdumpRead(output, 16);
 
 		for(i = 0; i < 16; i++){
 			messageSaida[k] = saida[i];
@@ -142,7 +218,7 @@ void crypt_SOB(unsigned char message[], int tamanho){
 	strcpy(message, messageSaida);
 	message[j] = '\0';
 
-	printk("Message: "); hexdump(message, tamanho);
+	printk("Message: "); hexdumpRead(message, tamanho);
 
 	kfree(output);
 	kfree(input);
@@ -158,33 +234,62 @@ void crypt_SOB(unsigned char message[], int tamanho){
 
 asmlinkage ssize_t read_crypt(int fd, const void *buf, size_t nbytes){
 
-	int i;
+	int i, hexa1, hexa2, len;
 	int tamanho = nbytes;
 	mm_segment_t old_fs;
-	unsigned char message[1024];
+
+	unsigned char message[512];
 	
+	printk("entrei no read------------------------\n");
+
 	if(fd < 0){
 		return 1;
 	}
-
+	
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
-	sys_read(fd, buf, nbytes*2);
+	sys_read(fd, buf, nbytes);
 	printk("leitura: %s", ((uint8_t*)buf));
 	printk("\n");
 
-	for(i = 0; i < tamanho; i++) {
-		sprintf(&message[i], "%c",((char *)buf)[i]);
+	
+
+	hexa1 = converteHexa(((uint8_t*)buf)[0]);
+	hexa2 = converteHexa(((uint8_t*)buf)[1]);
+
+	hexa1 = hexa1 * 16;
+	hexa1 += hexa2;		
+	
+	for(i = 0; i < tamanho / 2; i++){
+
+		message[i] = hexa1;
+
+		hexa1 = converteHexa( ((uint8_t*)buf)[(i+1)*2] );
+		hexa2 = converteHexa( ((uint8_t*)buf)[((i+1) * 2) + 1] );
+
+		hexa1 = hexa1 * 16;
+		hexa1 += hexa2;
+
+	}
+	message[i] = '\0';
+	tamanho = tamanho/2;
+
+	printk("valor message antes = "); hexdumpRead(message, tamanho);
+
+	decrypt_SOB(message, tamanho);
+
+	printk("valor message depois = "); hexdumpRead(message, tamanho);
+
+	for(i = 0; i < tamanho; i++){
+
+		((uint8_t*)buf)[i] = message[i];
+	
 	}
 	
-	crypt_SOB(message, tamanho);
+	printk("valor de retorno = %s\n", message);
 
-	buf = message;
-
-	printk("valor em arquivo = %s\n", message);
-	
 	set_fs(old_fs);
-
-
-	return 1;
+	
+	
+	return 0;
 }
